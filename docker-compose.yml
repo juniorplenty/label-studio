@@ -23,6 +23,7 @@ services:
     #   Optional: Override nginx default conf
     #      - ./deploy/my.conf:/etc/nginx/nginx.conf
     command: nginx
+    # command: sh -c "sed -i 's/listen      8085;/listen      0.0.0.0:8085;/' /etc/nginx/nginx.conf && nginx"
 
   app:
     stdin_open: true
@@ -34,6 +35,8 @@ services:
       - "8000"
     depends_on:
       - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - DJANGO_DB=default
       - POSTGRE_NAME=postgres
@@ -43,9 +46,13 @@ services:
       - POSTGRE_HOST=db
       - LABEL_STUDIO_HOST=${LABEL_STUDIO_HOST:-}
       - JSON_LOG=1
+      - LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=1
+      - LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/data
+      - LABEL_STUDIO_LOCAL_FILES_ALLOWED_EXTENSIONS=.png,.jpg,.jpeg,.txt,.json
     #      - LOG_LEVEL=DEBUG
     volumes:
       - ./mydata:/label-studio/data:rw
+      - /usr/local/src/movada/training/datasets:/label-studio/data/datasets:ro
     command: label-studio-uwsgi
 
   db:
