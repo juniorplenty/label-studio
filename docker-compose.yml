@@ -53,6 +53,9 @@ services:
     volumes:
       - ./mydata:/label-studio/data:rw
       - /usr/local/src/movada/training/datasets:/label-studio/data/datasets:ro
+      # Custom patches for bugs - mount modified files from host
+      - ./label_studio/data_manager/managers.py:/label-studio/label_studio/data_manager/managers.py:ro
+      - ./label_studio/tasks/serializers.py:/label-studio/label_studio/tasks/serializers.py:ro
     command: label-studio-uwsgi
 
   db:

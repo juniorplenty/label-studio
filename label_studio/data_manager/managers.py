@@ -202,22 +202,42 @@ def cast_value(_filter):
 def add_result_filter(field_name, _filter, filter_expressions, project):
     from django.db.models.expressions import RawSQL
     from tasks.models import Annotation, Prediction
+    import re as regex_module
 
     _class = Annotation if field_name == 'annotations_results' else Prediction
 
+    # Build JSONPath expression with escaped filter value for regex matching
+    # Escape special regex characters in the filter value
+    escaped_value = regex_module.escape(_filter.value)
+    jsonpath_expr = f'$[*].value.rectanglelabels[*] ? (@ like_regex "{escaped_value}" flag "i")'
+
     # Annotation
     if field_name == 'annotations_results':
+        # Use PostgreSQL jsonb_path_exists to search specifically in rectanglelabels arrays
+        # This prevents false matches on numeric coordinates or scores
         subquery = Q(
-            id__in=Annotation.objects.annotate(json_str=RawSQL('cast(result as text)', ''))
-            .filter(Q(project=project) & Q(json_str__contains=_filter.value))
+            id__in=Annotation.objects.annotate(
+                label_match=RawSQL(
+                    "jsonb_path_exists(result, %s)",
+                    [jsonpath_expr]
+                )
+            )
+            .filter(Q(project=project) & Q(label_match=True))
             .filter(task=OuterRef('pk'))
             .values_list('task', flat=True)
         )
     # Predictions: they don't have `project` yet
     else:
+        # Use PostgreSQL jsonb_path_exists to search specifically in rectanglelabels arrays
+        # This prevents false matches on numeric coordinates or scores
         subquery = Exists(
-            _class.objects.annotate(json_str=RawSQL('cast(result as text)', '')).filter(
-                Q(task=OuterRef('pk')) & Q(json_str__contains=_filter.value)
+            _class.objects.annotate(
+                label_match=RawSQL(
+                    "jsonb_path_exists(result, %s)",
+                    [jsonpath_expr]
+                )
+            ).filter(
+                Q(task=OuterRef('pk')) & Q(label_match=True)
             )
         )
 

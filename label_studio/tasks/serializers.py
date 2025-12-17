@@ -473,6 +473,10 @@ class BaseTaskSerializerBulk(serializers.ListSerializer):
         db_predictions = []
         validation_errors = []
 
+        # Initialize db_predictions as instance variable to avoid AttributeError
+        # even if we return early due to validation errors
+        self.db_predictions = []
+
         should_validate = self.project.label_config_is_not_default and flag_set(
             'fflag_feat_utc_210_prediction_validation_15082025', user=self.project.organization.created_by
         )
